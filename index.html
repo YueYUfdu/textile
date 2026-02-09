@@ -10,21 +10,22 @@
         :root {
             --dai-blue: #2c3e50; 
             --ya-white: #fdfaf2; 
-            --xuan-black: #1a1a1a; 
         }
         body { background-color: var(--ya-white); font-family: 'Noto Serif SC', serif; scroll-behavior: smooth; }
         .font-logo { font-family: 'Zhi Mang Xing', cursive; }
         .glass-nav { background: rgba(26, 26, 26, 0.98); backdrop-filter: blur(12px); border-bottom: 1px solid #334155; }
         
-        /* 稿纸感样式 */
+        /* 稿纸感样式：字体调整至12号(1.125rem)左右 */
         .essay-canvas { 
             background-color: var(--ya-white);
             background-image: linear-gradient(#e5e7eb 1px, transparent 1px);
-            background-size: 100% 3em;
-            line-height: 3em;
-            padding: 2.5em;
+            background-size: 100% 3.5rem;
+            line-height: 3.5rem;
+            padding: 3rem;
             border: 1px solid #d1d5db;
-            min-height: 800px;
+            min-height: 1000px;
+            font-size: 1.125rem; /* 约18px，视觉舒适度高 */
+            letter-spacing: 0.05em;
         }
 
         .btn-gold {
@@ -38,6 +39,7 @@
             border: 1px solid #e2e8f0; 
             transition: all 0.4s ease; 
             background: rgba(255,255,255,0.4);
+            cursor: pointer;
         }
         .card-outline:hover { 
             border-color: #a67c37; 
@@ -46,12 +48,7 @@
             box-shadow: 0 12px 24px rgba(0,0,0,0.05);
         }
 
-        /* 进度条动画 */
         .progress-smooth { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
-        
-        /* 自定义滚动条 */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
 <body class="min-h-screen pb-24 text-slate-800">
@@ -63,58 +60,56 @@
                 <span class="text-[10px] tracking-widest text-slate-400 uppercase border-l border-slate-700 pl-4 h-6 flex items-center">经纬·特级教师写作系统</span>
             </div>
             
-            <div class="flex gap-3 items-center mt-2 md:mt-0">
+            <div class="flex gap-3 items-center">
                 <select id="modelPreset" onchange="updateModelConfig()" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded focus:outline-none focus:border-yellow-600">
                     <option value="">选择预设模型路线...</option>
-                    <option value="deepseek">DeepSeek (性价比/中文强)</option>
-                    <option value="gpt4o">OpenAI GPT-4o (逻辑严密)</option>
-                    <option value="zhipu">智谱 GLM-4 (国内主流)</option>
+                    <option value="deepseek">DeepSeek (V3/R1)</option>
+                    <option value="gpt4o">OpenAI GPT-4o</option>
+                    <option value="zhipu">智谱 GLM-4</option>
                 </select>
-                <input id="apiKey" type="password" placeholder="请输入 API Key" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded w-48 outline-none focus:border-yellow-600">
+                <input id="apiKey" type="password" placeholder="API Key" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded w-40 outline-none focus:border-yellow-600 text-slate-200">
             </div>
         </div>
     </nav>
 
     <main class="max-w-4xl mx-auto mt-12 px-6">
-        <div id="progressWrapper" class="hidden mb-12 animate-fade-in">
+        <div id="progressWrapper" class="hidden mb-12">
             <div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
                 <div id="progressBar" class="progress-smooth bg-yellow-600 h-full w-0"></div>
             </div>
             <p id="progressStatus" class="text-[10px] text-yellow-800 font-bold mt-3 tracking-[0.3em] text-center uppercase opacity-70"></p>
         </div>
 
-        <section id="step1" class="mb-20">
-            <h2 class="text-2xl font-bold mb-8 flex items-center gap-4">
+        <section id="step1" class="mb-16">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-4">
                 <span class="w-12 h-[1px] bg-slate-800"></span>
                 命题入局
             </h2>
-            <textarea id="essayTopic" rows="8" class="w-full p-8 bg-white border border-slate-200 rounded shadow-sm outline-none focus:border-yellow-700 transition font-serif text-lg leading-relaxed" placeholder="在此输入作文题目材料。Textile 将为您解构经纬，重塑文章灵魂..."></textarea>
+            <textarea id="essayTopic" rows="8" class="w-full p-8 bg-white border border-slate-200 rounded shadow-sm outline-none focus:border-yellow-700 transition font-serif text-lg leading-relaxed" placeholder="输入作文题目材料。由特级教师为您点石成金..."></textarea>
             <div class="flex justify-end mt-6">
                 <button onclick="generateOutlines()" id="btnOutline" class="btn-gold px-12 py-4 rounded-sm tracking-[0.3em] font-bold text-sm uppercase">
-                    推演经纬提纲
+                    解析材料 · 深度立意
                 </button>
             </div>
         </section>
 
-        <section id="step2" class="hidden mb-20 animate-fade-in">
-            <h2 class="text-2xl font-bold mb-8 flex items-center gap-4 text-slate-700">
+        <section id="step2" class="hidden mb-16">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-4 text-slate-700">
                 <span class="w-12 h-[1px] bg-yellow-600"></span>
-                立意架构
+                逻辑骨架
             </h2>
             <div id="outlineCards" class="grid md:grid-cols-3 gap-8"></div>
         </section>
 
-        <section id="step3" class="hidden animate-fade-in">
-            <div class="flex justify-between items-end mb-8 border-b border-slate-200 pb-4">
+        <section id="step3" class="hidden">
+            <div class="flex justify-between items-end mb-6 border-b border-slate-200 pb-4">
                 <h2 class="text-2xl font-bold flex items-center gap-4 text-slate-700">
                     <span class="w-12 h-[1px] bg-yellow-600"></span>
                     经纬成文
                 </h2>
-                <div class="flex gap-4">
-                    <button onclick="copyEssay()" class="text-xs text-slate-400 hover:text-yellow-700 tracking-widest">COPY / 复制全文</button>
-                </div>
+                <button onclick="copyEssay()" class="text-xs text-slate-400 hover:text-yellow-700 tracking-widest">COPY / 复制全文</button>
             </div>
-            <article id="finalEssay" class="essay-canvas shadow-2xl text-xl leading-[3em] text-slate-900 whitespace-pre-wrap font-serif-zh"></article>
+            <article id="finalEssay" class="essay-canvas shadow-2xl text-slate-900 whitespace-pre-wrap font-serif-zh"></article>
         </section>
     </main>
 
@@ -151,18 +146,13 @@
 
         async function callAI(messages) {
             const apiKey = document.getElementById('apiKey').value;
-            if (!apiKey || !currentUrl) { alert('配置缺失：请选择模型路线并填写有效的 API Key'); return null; }
+            if (!apiKey || !currentUrl) { alert('配置缺失：请选择模型路线并填写 API Key'); return null; }
 
             try {
                 const response = await fetch(`${currentUrl}/chat/completions`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        model: currentModel, 
-                        messages: messages, 
-                        temperature: 0.8,
-                        response_format: { "type": "text" } 
-                    })
+                    body: JSON.stringify({ model: currentModel, messages: messages, temperature: 0.8 })
                 });
 
                 if (!response.ok) {
@@ -184,35 +174,37 @@
 
             const btn = document.getElementById('btnOutline');
             btn.disabled = true;
-            Progress.update(20, "正在解析命题经纬...");
+            Progress.update(20, "正在挖掘文化根源...");
 
-            const systemPrompt = `你是一位深耕高考作文20年的特级教师。针对材料给出三个深度提纲。
-要求：标题美学化，论点对仗，逻辑体现递进。
-【输出格式】：必须只输出一个纯净的JSON数据，不含任何解释。
-结构：{"outlines": [{"title": "", "logic": "", "points": ["", "", ""], "materials": ["", "", ""]}]}`;
+            const systemPrompt = `你是深耕中国高考作文命题与阅卷 20 年的特级教师。你的核心能力是“点石成金”，能从普通材料中挖掘出深层的文化根源与哲学辩证逻辑。
+任务： 针对用户提供的作文题目，给出三个层层递进的创作提纲。
+输出约束：
+1. 结构要求：每个提纲必须包含：标题、核心立意（一句话）、以及三个对仗式的论点。
+2. 逻辑要求：论点必须体现递进关系（如：从个体觉醒到群体共振，从物理表象到文化认同，从历史守恒到未来演进）。
+3. 论点句式：所有论点必须采用【七言】或【八言】对仗句。
+4. 素材预设：为每个提纲精准匹配【3个人物/事件名】，必须是文化厚度高的冷门素材，严禁使用苏轼、司马迁等。
+请直接输出纯净JSON格式：{"outlines": [{"title": "", "立意": "", "points": ["论点1", "论点2", "论点3"], "materials": "3个人物名+角度简述"}]}`;
 
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: topic }]);
             if (res) {
                 try {
-                    Progress.update(60, "立意推演中...");
                     const jsonMatch = res.match(/\{[\s\S]*\}/);
                     const data = JSON.parse(jsonMatch[0]);
-                    
                     const container = document.getElementById('outlineCards');
                     container.innerHTML = data.outlines.map(o => `
-                        <div onclick='writeEssay(${JSON.stringify(o).replace(/'/g, "&apos;")})' class="card-outline p-8 cursor-pointer rounded-sm">
-                            <h3 class="font-bold text-xl mb-6 text-slate-800 tracking-wide">${o.title}</h3>
-                            <ul class="text-xs space-y-4 mb-8 text-slate-500 border-l-2 border-yellow-700/30 pl-4">
-                                ${o.points.map(p => `<li class="leading-relaxed">${p}</li>`).join('')}
+                        <div onclick='writeEssay(${JSON.stringify(o).replace(/'/g, "&apos;")})' class="card-outline p-6 rounded-sm">
+                            <h3 class="font-bold text-lg mb-4 text-slate-800 tracking-wide">${o.title}</h3>
+                            <p class="text-[10px] text-slate-400 mb-4 italic">${o.立意}</p>
+                            <ul class="text-xs space-y-3 mb-6 text-slate-600 border-l border-yellow-700/30 pl-4">
+                                ${o.points.map(p => `<li>${p}</li>`).join('')}
                             </ul>
-                            <div class="text-[9px] text-yellow-800 tracking-[0.2em] font-bold opacity-40 uppercase">织就此篇 / Craft this</div>
+                            <div class="text-[9px] text-yellow-800 font-bold opacity-40">素材：${o.materials}</div>
                         </div>
                     `).join('');
-                    
                     document.getElementById('step2').classList.remove('hidden');
-                    Progress.update(100, "提纲架构完成");
+                    Progress.update(100, "立意推演完成");
                 } catch (e) {
-                    alert("提纲解析失败：AI 输出格式不规范。建议刷新重试。");
+                    alert("提纲解析异常，建议微调模型或重试");
                     Progress.fail();
                 }
             }
@@ -222,34 +214,37 @@
         async function writeEssay(outline) {
             const container = document.getElementById('finalEssay');
             document.getElementById('step3').classList.remove('hidden');
-            container.innerHTML = "<div class='text-center py-20 italic text-slate-300 tracking-widest'>笔墨落纸，正在织就经纬之作...</div>";
+            container.innerHTML = "<div class='text-center py-24 italic text-slate-300 tracking-[0.5em]'>笔耕不辍，经纬自成...</div>";
             window.scrollTo({ top: document.getElementById('step3').offsetTop - 100, behavior: 'smooth' });
 
             Progress.update(20, "起笔古典意象...");
 
-            const systemPrompt = `你是特级教师，擅长《文心雕龙》式的典雅风格。
-任务：撰写1000字左右高考一类文。
-规范：
-1. 开头：古典意象起兴（大漠/钟鼎等），150字。
-2. 论点段：每段以对仗句开启。引用一句真实存在的古诗词（严禁自创）。每段必须包含3个真实文化素材特写镜头。
-3. 标点：少用冒号、引号、破折号，行文如流水。
-4. 语言：严禁“首先、其次”，改用文学衔接。
-5. 结尾：升华为家国使命或文化认同。`;
+            const systemPrompt = `你是深耕中国高考作文命题与阅卷 20 年的特级教师。请根据用户选定的提纲进行正文创作。
+语言风格：
+- 兼具《文心雕龙》典雅与现代人文散文隽永。
+- 多用长短句，适度使用“之、乎、者、也、焉、哉”调节语感。
+- 严禁“首先/其次/综上所述”。改用“然则、回望、溯流而上、诚如斯言”。
+- 【硬性要求】：尽量不使用冒号、引号、破折号。
+结构与字数：
+1. 起兴开头（150字）：以古典意象或典故起兴，立意入局。
+2. 论点段（250字×3）：
+   - 开头必须是选定的对仗句。
+   - 【电影感特写】：拒绝叙述生平，必须描写细节（如：指尖摩挲简册、衣襟沾染棉絮）。
+   - 每段必引一句真实古诗词或散文诗，切记自创，需深度融合。
+3. 升华结尾（150字）：从物理层面升华为文化认同、民族共识或人类命运高度。
+字数总量1000字左右。`;
 
-            const userPrompt = `材料：${document.getElementById('essayTopic').value}\n提纲：${JSON.stringify(outline)}`;
+            const userPrompt = `材料：${document.getElementById('essayTopic').value}\n方案：${outline.title}\n论点：${outline.points.join('；')}`;
             
-            Progress.update(50, "铺设文化骨架...");
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }]);
             if (res) {
-                Progress.update(90, "最后润色升华...");
-                container.innerText = res;
                 Progress.update(100, "锦绣文章已成");
+                container.innerText = res;
             }
         }
 
         function copyEssay() {
-            const text = document.getElementById('finalEssay').innerText;
-            navigator.clipboard.writeText(text).then(() => alert('文稿已收录至剪贴板'));
+            navigator.clipboard.writeText(document.getElementById('finalEssay').innerText).then(() => alert('已收录至剪贴板'));
         }
     </script>
 </body>
