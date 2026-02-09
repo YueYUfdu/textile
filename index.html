@@ -3,36 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Textile | Textile·人工智能高考作文写作工具</title>
+    <title>Textile | 高考作文写作系统</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
     <style>
         :root {
-            --dai-blue: #2c3e50; /* 黛蓝 */
-            --ya-white: #fdfaf2; /* 牙色 */
-            --xuan-black: #1a1a1a; /* 玄黑 */
+            --dai-blue: #2c3e50; 
+            --ya-white: #fdfaf2; 
+            --xuan-black: #1a1a1a; 
         }
-        body { background-color: var(--ya-white); font-family: 'Noto Serif SC', serif; }
+        body { background-color: var(--ya-white); font-family: 'Noto Serif SC', serif; scroll-behavior: smooth; }
         .font-logo { font-family: 'Zhi Mang Xing', cursive; }
-        .glass-nav { background: rgba(26, 26, 26, 0.95); backdrop-filter: blur(10px); }
+        .glass-nav { background: rgba(26, 26, 26, 0.98); backdrop-filter: blur(12px); border-bottom: 1px solid #334155; }
+        
+        /* 稿纸感样式 */
         .essay-canvas { 
             background-color: var(--ya-white);
             background-image: linear-gradient(#e5e7eb 1px, transparent 1px);
             background-size: 100% 3em;
             line-height: 3em;
-            padding: 2em;
+            padding: 2.5em;
             border: 1px solid #d1d5db;
+            min-height: 800px;
         }
+
         .btn-gold {
             background: linear-gradient(135deg, #c5a059 0%, #a67c37 100%);
-            color: white; transition: all 0.3s ease;
+            color: white; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .btn-gold:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(166, 124, 55, 0.3); }
-        .card-outline { border: 1px solid #e5e7eb; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        .card-outline:hover { border-color: #a67c37; background: #fff; }
+        .btn-gold:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(166, 124, 55, 0.3); }
+        .btn-gold:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .card-outline { 
+            border: 1px solid #e2e8f0; 
+            transition: all 0.4s ease; 
+            background: rgba(255,255,255,0.4);
+        }
+        .card-outline:hover { 
+            border-color: #a67c37; 
+            background: #fff; 
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.05);
+        }
+
+        /* 进度条动画 */
+        .progress-smooth { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="min-h-screen pb-20 text-slate-800">
+<body class="min-h-screen pb-24 text-slate-800">
 
     <nav class="glass-nav text-white p-4 sticky top-0 z-50 shadow-2xl">
         <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center">
@@ -41,50 +63,58 @@
                 <span class="text-[10px] tracking-widest text-slate-400 uppercase border-l border-slate-700 pl-4 h-6 flex items-center">经纬·特级教师写作系统</span>
             </div>
             
-            <div class="flex gap-3 items-center">
-                <select id="modelPreset" onchange="updateModelConfig()" class="bg-slate-800 border border-slate-700 text-xs px-2 py-1.5 rounded focus:outline-none focus:border-yellow-600">
-                    <option value="">选择模型路线...</option>
-                    <option value="deepseek">DeepSeek (性价比首选)</option>
+            <div class="flex gap-3 items-center mt-2 md:mt-0">
+                <select id="modelPreset" onchange="updateModelConfig()" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded focus:outline-none focus:border-yellow-600">
+                    <option value="">选择预设模型路线...</option>
+                    <option value="deepseek">DeepSeek (性价比/中文强)</option>
                     <option value="gpt4o">OpenAI GPT-4o (逻辑严密)</option>
-                    <option value="claude35">Claude 3.5 Sonnet (文采斐然)</option>
-                    <option value="zhipu">智谱 GLM-4 (中文深度)</option>
+                    <option value="zhipu">智谱 GLM-4 (国内主流)</option>
                 </select>
-                <input id="apiKey" type="password" placeholder="API Key" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded w-40 outline-none">
+                <input id="apiKey" type="password" placeholder="请输入 API Key" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded w-48 outline-none focus:border-yellow-600">
             </div>
         </div>
     </nav>
 
     <main class="max-w-4xl mx-auto mt-12 px-6">
-        <section id="step1" class="mb-16">
-            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
-                <span class="w-8 h-[1px] bg-slate-800"></span>
+        <div id="progressWrapper" class="hidden mb-12 animate-fade-in">
+            <div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
+                <div id="progressBar" class="progress-smooth bg-yellow-600 h-full w-0"></div>
+            </div>
+            <p id="progressStatus" class="text-[10px] text-yellow-800 font-bold mt-3 tracking-[0.3em] text-center uppercase opacity-70"></p>
+        </div>
+
+        <section id="step1" class="mb-20">
+            <h2 class="text-2xl font-bold mb-8 flex items-center gap-4">
+                <span class="w-12 h-[1px] bg-slate-800"></span>
                 命题入局
             </h2>
-            <textarea id="essayTopic" rows="6" class="w-full p-6 bg-white border border-slate-200 rounded shadow-inner outline-none focus:border-yellow-700 transition font-serif text-lg" placeholder="在此输入作文题目材料，Textile 将为您编织文字经纬..."></textarea>
-            <div class="flex justify-end mt-4">
-                <button onclick="generateOutlines()" id="btnOutline" class="btn-gold px-10 py-3 rounded-sm tracking-[0.2em] font-bold">
-                    起草提纲
+            <textarea id="essayTopic" rows="8" class="w-full p-8 bg-white border border-slate-200 rounded shadow-sm outline-none focus:border-yellow-700 transition font-serif text-lg leading-relaxed" placeholder="在此输入作文题目材料。Textile 将为您解构经纬，重塑文章灵魂..."></textarea>
+            <div class="flex justify-end mt-6">
+                <button onclick="generateOutlines()" id="btnOutline" class="btn-gold px-12 py-4 rounded-sm tracking-[0.3em] font-bold text-sm uppercase">
+                    推演经纬提纲
                 </button>
             </div>
         </section>
 
-        <section id="step2" class="hidden mb-16">
-            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-700">
-                <span class="w-8 h-[1px] bg-yellow-600"></span>
+        <section id="step2" class="hidden mb-20 animate-fade-in">
+            <h2 class="text-2xl font-bold mb-8 flex items-center gap-4 text-slate-700">
+                <span class="w-12 h-[1px] bg-yellow-600"></span>
                 立意架构
             </h2>
             <div id="outlineCards" class="grid md:grid-cols-3 gap-8"></div>
         </section>
 
-        <section id="step3" class="hidden">
-            <div class="flex justify-between items-end mb-6">
-                <h2 class="text-2xl font-bold flex items-center gap-3 text-slate-700">
-                    <span class="w-8 h-[1px] bg-yellow-600"></span>
+        <section id="step3" class="hidden animate-fade-in">
+            <div class="flex justify-between items-end mb-8 border-b border-slate-200 pb-4">
+                <h2 class="text-2xl font-bold flex items-center gap-4 text-slate-700">
+                    <span class="w-12 h-[1px] bg-yellow-600"></span>
                     经纬成文
                 </h2>
-                <button onclick="copyEssay()" class="text-xs text-slate-400 hover:text-yellow-700 underline underline-offset-4">复制全文</button>
+                <div class="flex gap-4">
+                    <button onclick="copyEssay()" class="text-xs text-slate-400 hover:text-yellow-700 tracking-widest">COPY / 复制全文</button>
+                </div>
             </div>
-            <article id="finalEssay" class="essay-canvas shadow-2xl text-xl leading-[3em] text-slate-900"></article>
+            <article id="finalEssay" class="essay-canvas shadow-2xl text-xl leading-[3em] text-slate-900 whitespace-pre-wrap font-serif-zh"></article>
         </section>
     </main>
 
@@ -92,7 +122,6 @@
         const CONFIG = {
             deepseek: { url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
             gpt4o: { url: 'https://api.openai.com/v1', model: 'gpt-4o' },
-            claude35: { url: 'https://api.anthropic.com/v1', model: 'claude-3-5-sonnet-20240620' }, // 注意：Claude官方通常需中转URL
             zhipu: { url: 'https://open.bigmodel.cn/api/paas/v4/', model: 'glm-4' }
         };
 
@@ -104,24 +133,47 @@
             if(CONFIG[preset]) {
                 currentUrl = CONFIG[preset].url;
                 currentModel = CONFIG[preset].model;
-                console.log(`Config updated: ${currentModel}`);
             }
         }
 
+        const Progress = {
+            update: (percent, msg) => {
+                const wrapper = document.getElementById('progressWrapper');
+                const bar = document.getElementById('progressBar');
+                const status = document.getElementById('progressStatus');
+                wrapper.classList.remove('hidden');
+                bar.style.width = percent + '%';
+                if(msg) status.innerText = msg;
+                if(percent >= 100) setTimeout(() => wrapper.classList.add('hidden'), 2000);
+            },
+            fail: () => { document.getElementById('progressWrapper').classList.add('hidden'); }
+        };
+
         async function callAI(messages) {
             const apiKey = document.getElementById('apiKey').value;
-            if (!apiKey || !currentUrl) { alert('请完整填写配置与 API Key'); return null; }
+            if (!apiKey || !currentUrl) { alert('配置缺失：请选择模型路线并填写有效的 API Key'); return null; }
 
             try {
                 const response = await fetch(`${currentUrl}/chat/completions`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: currentModel, messages: messages, temperature: 0.8 })
+                    body: JSON.stringify({ 
+                        model: currentModel, 
+                        messages: messages, 
+                        temperature: 0.8,
+                        response_format: { "type": "text" } 
+                    })
                 });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error?.message || `HTTP ${response.status}`);
+                }
                 const data = await response.json();
                 return data.choices[0].message.content;
             } catch (error) {
-                alert('连接失败，请确认网络环境或 API 状态');
+                alert(`经纬中断：${error.message}`);
+                Progress.fail();
                 return null;
             }
         }
@@ -131,65 +183,73 @@
             if(!topic) return;
 
             const btn = document.getElementById('btnOutline');
-            btn.innerHTML = "正在推演经纬...";
             btn.disabled = true;
+            Progress.update(20, "正在解析命题经纬...");
 
-            const systemPrompt = `你是一位深耕高考作文20年的特级教师。
-针对用户材料，给出三个差异化的深度提纲。
-要求：
-1. 标题需具有古典美学（如：毂下同心，负重而行）。
-2. 逻辑：体现“个体与核心”、“协作与负载”、“守恒与演进”的辩证逻辑。
-3. 论点句：采用七言或八言对仗。
-请输出JSON: {"outlines": [{"title": "", "logic": "", "points": ["", "", ""], "materials": ["", "", ""]}]}`;
+            const systemPrompt = `你是一位深耕高考作文20年的特级教师。针对材料给出三个深度提纲。
+要求：标题美学化，论点对仗，逻辑体现递进。
+【输出格式】：必须只输出一个纯净的JSON数据，不含任何解释。
+结构：{"outlines": [{"title": "", "logic": "", "points": ["", "", ""], "materials": ["", "", ""]}]}`;
 
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: topic }]);
             if (res) {
-                const data = JSON.parse(res.match(/\{[\s\S]*\}/)[0]);
-                const container = document.getElementById('outlineCards');
-                container.innerHTML = data.outlines.map(o => `
-                    <div onclick='writeEssay(${JSON.stringify(o)})' class="card-outline p-6 cursor-pointer bg-white/50 backdrop-blur-sm">
-                        <h3 class="font-bold text-lg mb-4 text-slate-800">${o.title}</h3>
-                        <ul class="text-xs space-y-3 mb-6 text-slate-500 border-l border-slate-200 pl-4">
-                            ${o.points.map(p => `<li>${p}</li>`).join('')}
-                        </ul>
-                        <div class="text-[10px] text-yellow-800 uppercase tracking-widest opacity-60">点击展开全文</div>
-                    </div>
-                `).join('');
-                document.getElementById('step2').classList.remove('hidden');
+                try {
+                    Progress.update(60, "立意推演中...");
+                    const jsonMatch = res.match(/\{[\s\S]*\}/);
+                    const data = JSON.parse(jsonMatch[0]);
+                    
+                    const container = document.getElementById('outlineCards');
+                    container.innerHTML = data.outlines.map(o => `
+                        <div onclick='writeEssay(${JSON.stringify(o).replace(/'/g, "&apos;")})' class="card-outline p-8 cursor-pointer rounded-sm">
+                            <h3 class="font-bold text-xl mb-6 text-slate-800 tracking-wide">${o.title}</h3>
+                            <ul class="text-xs space-y-4 mb-8 text-slate-500 border-l-2 border-yellow-700/30 pl-4">
+                                ${o.points.map(p => `<li class="leading-relaxed">${p}</li>`).join('')}
+                            </ul>
+                            <div class="text-[9px] text-yellow-800 tracking-[0.2em] font-bold opacity-40 uppercase">织就此篇 / Craft this</div>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('step2').classList.remove('hidden');
+                    Progress.update(100, "提纲架构完成");
+                } catch (e) {
+                    alert("提纲解析失败：AI 输出格式不规范。建议刷新重试。");
+                    Progress.fail();
+                }
             }
-            btn.innerHTML = "起草提纲";
             btn.disabled = false;
         }
 
         async function writeEssay(outline) {
             const container = document.getElementById('finalEssay');
             document.getElementById('step3').classList.remove('hidden');
-            container.innerHTML = "<div class='text-center py-20 italic text-slate-400'>正在以经纬之志，织就锦绣文章...</div>";
+            container.innerHTML = "<div class='text-center py-20 italic text-slate-300 tracking-widest'>笔墨落纸，正在织就经纬之作...</div>";
             window.scrollTo({ top: document.getElementById('step3').offsetTop - 100, behavior: 'smooth' });
 
-            const systemPrompt = `你是一位深耕高考作文20年的特级教师，擅长《文心雕龙》式的典雅风格。
-任务：根据提纲撰写1000字左右的高考一类文（55分+）。
-写作规范：
-1. 开头：以中国古典文学意象（如大漠、钟鼎、简册、孤灯）起兴，字数150左右。
-2. 论点段落（3段，每段250字）：
-   - 每段以选定的对仗论点句开启。
-   - 引用一句真实存在的古诗词或现代诗（严禁自创）。
-   - 每段必须包含3个真实的、具有文化厚度的人物事例素材（如陈寅恪、王阳明、顾炎武、张謇、樊锦诗等）。
-   - 描写：拒绝生平叙述，使用“电影感”特写镜头描写动作或环境。
-3. 标点要求：少用冒号、引号、破折号，多用句号与逗号，使行文如流水。
-4. 语言：严禁使用“首先、其次、总之”，改用“然则、溯流而上、回望”等文学衔接。
-5. 结尾：将物理逻辑升华为“文化认同”或“家国使命”的哲学高度。`;
+            Progress.update(20, "起笔古典意象...");
+
+            const systemPrompt = `你是特级教师，擅长《文心雕龙》式的典雅风格。
+任务：撰写1000字左右高考一类文。
+规范：
+1. 开头：古典意象起兴（大漠/钟鼎等），150字。
+2. 论点段：每段以对仗句开启。引用一句真实存在的古诗词（严禁自创）。每段必须包含3个真实文化素材特写镜头。
+3. 标点：少用冒号、引号、破折号，行文如流水。
+4. 语言：严禁“首先、其次”，改用文学衔接。
+5. 结尾：升华为家国使命或文化认同。`;
 
             const userPrompt = `材料：${document.getElementById('essayTopic').value}\n提纲：${JSON.stringify(outline)}`;
             
+            Progress.update(50, "铺设文化骨架...");
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }]);
             if (res) {
+                Progress.update(90, "最后润色升华...");
                 container.innerText = res;
+                Progress.update(100, "锦绣文章已成");
             }
         }
 
         function copyEssay() {
-            navigator.clipboard.writeText(document.getElementById('finalEssay').innerText).then(() => alert('文稿已收录至剪贴板'));
+            const text = document.getElementById('finalEssay').innerText;
+            navigator.clipboard.writeText(text).then(() => alert('文稿已收录至剪贴板'));
         }
     </script>
 </body>
