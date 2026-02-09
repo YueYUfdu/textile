@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textile | 特级教师作文 AI 创作系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Helvetica Neue', sans-serif; }
+        .font-serif-zh { font-family: 'Noto Serif SC', serif; }
+        .font-art { font-family: 'Ma Shan Zheng', cursive; }
+        .loading-dots:after { content: '...'; animation: dots 1.5s steps(5, end) infinite; }
+        @keyframes dots { 0%, 20% { color: rgba(0,0,0,0); text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); } 40% { color: #374151; text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); } 60% { text-shadow: .25em 0 0 #374151, .5em 0 0 rgba(0,0,0,0); } 80%, 100% { text-shadow: .25em 0 0 #374151, .5em 0 0 #374151; } }
+        .essay-paper { background-color: #fdfaf2; background-image: radial-gradient(#e5e7eb 0.5px, transparent 0.5px); background-size: 20px 20px; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen pb-20">
+
+    <nav class="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-art">毂下 · 特级教师 AI 写作</h1>
+            <div class="flex gap-4 text-xs">
+                <input id="apiKey" type="password" placeholder="API Key" class="bg-slate-800 border border-slate-700 px-3 py-1 rounded w-32 focus:outline-none focus:border-blue-500">
+                <input id="baseUrl" type="text" placeholder="Base URL (Optional)" class="bg-slate-800 border border-slate-700 px-3 py-1 rounded w-40 focus:outline-none focus:border-blue-500">
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto mt-8 p-4">
+        <div class="mb-8 bg-blue-50 border-l-4 border-blue-400 p-4 text-sm text-blue-800 shadow-sm">
+            <p><strong>💡 使用说明：</strong> 本系统模拟特级教师思维。第一步分析材料并提供三套立意（提纲）；第二步基于选定立意进行电影感扩写。建议使用 GPT-4o 或 Claude 3.5 以获得最佳文学效果。</p>
+        </div>
+
+        <section id="step1" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="bg-slate-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
+                <h2 class="text-lg font-bold">输入作文题目或材料</h2>
+            </div>
+            <textarea id="essayTopic" rows="6" class="w-full p-4 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-slate-400 outline-none transition" placeholder="请在此输入完整的高考作文命题材料..."></textarea>
+            <button onclick="getOutlines()" id="btnOutline" class="mt-4 bg-slate-800 text-white px-8 py-3 rounded-lg hover:bg-slate-700 transition flex items-center gap-2">
+                <span>生成深度提纲</span>
+            </button>
+        </section>
+
+        <section id="step2" class="hidden space-y-4 mb-8">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="bg-slate-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
+                <h2 class="text-lg font-bold">选择立意架构</h2>
+            </div>
+            <div id="outlineCards" class="grid md:grid-cols-3 gap-6">
+                </div>
+        </section>
+
+        <section id="step3" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="bg-slate-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span>
+                    <h2 class="text-lg font-bold">一类文正文</h2>
+                </div>
+                <button onclick="copyEssay()" class="text-slate-500 hover:text-slate-800 text-sm">复制全文</button>
+            </div>
+            <div id="finalEssay" class="essay-paper p-8 md:p-12 border rounded-xl shadow-inner font-serif-zh text-lg leading-relaxed text-gray-800 whitespace-pre-wrap">
+                </div>
+        </section>
+    </main>
+
+    <script>
+        let selectedOutline = "";
+
+        async function callAI(messages) {
+            const apiKey = document.getElementById('apiKey').value;
+            const baseUrl = document.getElementById('baseUrl').value || 'https://api.openai.com/v1';
+            
+            if (!apiKey) { alert('请输入 API Key'); return null; }
+
+            try {
+                const response = await fetch(`${baseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o", // 或其他模型
+                        messages: messages,
+                        temperature: 0.7
+                    })
+                });
+                const data = await response.json();
+                return data.choices[0].message.content;
+            } catch (error) {
+                console.error('API Error:', error);
+                alert('调用失败，请检查网络或配置');
+                return null;
+            }
+        }
+
+        async function getOutlines() {
+            const topic = document.getElementById('essayTopic').value;
+            if(!topic) return;
+
+            const btn = document.getElementById('btnOutline');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-dots">专家正在阅卷立意</span>';
+
+            const systemPrompt = `你是深耕高考作文20年的特级教师。任务：针对用户材料，给出三个差异化的创作提纲。要求：标题文学化；三个论点必须是七言或八言对仗句，体现从个体到社会再到哲学的逻辑递进；每个提纲配一个冷门素材。请直接输出JSON格式，结构为：{"outlines": [{"title": "", "logic": "", "points": ["论点1", "论点2", "论点3"], "material": ""}, ...]}`;
+
+            const result = await callAI([
+                { role: "system", content: systemPrompt },
+                { role: "user", content: topic }
+            ]);
+
+            if (result) {
+                const data = JSON.parse(result.match(/\{[\s\S]*\}/)[0]);
+                const container = document.getElementById('outlineCards');
+                container.innerHTML = data.outlines.map((o, index) => `
+                    <div onclick="writeFullEssay(${index}, ${JSON.stringify(o).replace(/"/g, '&quot;')})" class="cursor-pointer bg-white border-2 border-slate-100 p-5 rounded-xl hover:border-slate-800 transition group relative">
+                        <h3 class="font-bold text-slate-800 text-lg mb-2 group-hover:text-blue-600">${o.title}</h3>
+                        <p class="text-xs text-slate-400 mb-4">${o.logic}</p>
+                        <ul class="text-sm space-y-2 border-l-2 border-slate-100 pl-3">
+                            ${o.points.map(p => `<li class="text-slate-600">${p}</li>`).join('')}
+                        </ul>
+                        <div class="mt-4 text-xs font-bold text-slate-400 italic">素材预期：${o.material}</div>
+                    </div>
+                `).join('');
+                document.getElementById('step2').classList.remove('hidden');
+                window.scrollTo({ top: document.getElementById('step2').offsetTop - 100, behavior: 'smooth' });
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<span>生成深度提纲</span>';
+        }
+
+        async function writeFullEssay(id, outline) {
+            const container = document.getElementById('finalEssay');
+            document.getElementById('step3').classList.remove('hidden');
+            container.innerHTML = '<p class="loading-dots text-center py-20 text-slate-400 font-serif-zh">特级教师正在挥毫洒墨，请稍候...</p>';
+            window.scrollTo({ top: document.getElementById('step3').offsetTop - 50, behavior: 'smooth' });
+
+            const topic = document.getElementById('essayTopic').value;
+            const systemPrompt = `你是深耕高考作文20年的特级教师。请根据选定提纲扩写1000字一类文。要求：1.开头古典意象起兴；2.论点段落开启必须用对仗句；3.使用电影感镜头描写冷门素材，严禁流水账；4.严禁“首先/总之”，改用文学性衔接；5.结尾升华到文化或家国高度。`;
+            const userPrompt = `题目：${topic}\n选定提纲：${JSON.stringify(outline)}`;
+
+            const result = await callAI([
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
+            ]);
+
+            if (result) {
+                container.innerText = result;
+            }
+        }
+
+        function copyEssay() {
+            const text = document.getElementById('finalEssay').innerText;
+            navigator.clipboard.writeText(text).then(() => alert('已复制到剪贴板'));
+        }
+    </script>
+</body>
+</html>
