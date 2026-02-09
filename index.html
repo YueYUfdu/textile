@@ -12,7 +12,6 @@
         .font-logo { font-family: 'Zhi Mang Xing', cursive; }
         .glass-nav { background: rgba(26, 26, 26, 0.98); backdrop-filter: blur(12px); border-bottom: 1px solid #334155; }
         
-        /* 稿纸感样式：字体缩小至1rem (约16px)，间距更紧凑 */
         .essay-canvas { 
             background-color: var(--ya-white);
             background-image: linear-gradient(#e5e7eb 1px, transparent 1px);
@@ -47,7 +46,9 @@
                 <span class="text-[11px] tracking-[0.2em] text-slate-400 uppercase border-l border-slate-700 pl-4 h-6 flex items-center">高考作文写作工具</span>
             </div>
             
-            <div class="flex gap-3 items-center mt-3 md:mt-0">
+            <div class="flex flex-col md:flex-row gap-2 items-end md:items-center mt-3 md:mt-0">
+                <input id="customUrl" type="text" placeholder="代理地址(选填)" class="bg-slate-900 border border-slate-700 text-[10px] px-2 py-1.5 rounded w-32 outline-none focus:border-yellow-600 text-slate-400">
+                
                 <select id="modelPreset" onchange="updateModelConfig()" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded focus:outline-none focus:border-yellow-600 text-slate-200 cursor-pointer">
                     <option value="">选择模型路线...</option>
                     <option value="gemini">Gemini 1.5 Pro</option>
@@ -90,7 +91,6 @@
     </main>
 
     <script>
-        // 修复点：提供更健壮的默认地址，并提醒用户 CORS 问题
         const CONFIG = {
             gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-1.5-pro' },
             deepseek: { url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
@@ -123,14 +123,21 @@
 
         async function callAI(messages) {
             const apiKey = document.getElementById('apiKey').value;
-            if (!apiKey || !currentUrl) { alert('配置缺失：请在导航栏选择模型并填写 API Key'); return null; }
-            
-            // 修复点：针对 Gemini 官方地址进行 CORS 预判。
-            // 提示：如果是在本地直接运行或 Vercel 前端直连，官方接口 99% 会因 CORS 失败。
-            // 建议：此处 currentUrl 最好由用户输入中转 API 地址。
+            // 修复逻辑：优先读取用户填写的自定义 URL
+            const userUrl = document.getElementById('customUrl').value.trim();
+            const finalUrl = userUrl || currentUrl;
+
+            if (!apiKey || !finalUrl) { 
+                alert('配置缺失：请填写 API Key 并确保 Base URL 已设定'); 
+                return null; 
+            }
             
             try {
-                const response = await fetch(`${currentUrl}/chat/completions`, {
+                // 核心修复：添加 mode: 'cors' 尝试，并增加超时处理
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+                const response = await fetch(`${finalUrl.replace(/\/$/, '')}/chat/completions`, {
                     method: 'POST',
                     headers: { 
                         'Authorization': `Bearer ${apiKey}`, 
@@ -140,8 +147,11 @@
                         model: currentModel, 
                         messages: messages, 
                         temperature: 0.7 
-                    })
+                    }),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     const err = await response.json();
@@ -150,13 +160,12 @@
                 const data = await response.json();
                 return data.choices[0].message.content;
             } catch (error) {
-                console.error("AI Call Error:", error);
-                // 修复点：更精准的缺陷提示
-                let errorMsg = error.message;
-                if (error.message.includes('Failed to fetch')) {
-                    errorMsg = "网络连接失败。原因可能是：1. 浏览器拦截了跨域请求(CORS)；2. 无法直连 Google 服务器。建议使用 API 中转代理地址。";
+                console.error("Fetch Error:", error);
+                let msg = error.name === 'AbortError' ? "请求超时，模型响应过慢" : error.message;
+                if (msg.includes('Failed to fetch')) {
+                    msg = "CORS 跨域拦截或网络不可达。Gemini 官方地址禁止网页直连，请在左侧填入代理/中转地址。";
                 }
-                alert(`经纬中断：${errorMsg}`);
+                alert(`经纬中断：${msg}`);
                 Progress.fail();
                 return null;
             }
@@ -169,21 +178,14 @@
             btn.disabled = true;
             Progress.update(20, "正在挖掘文化根源与哲学辩证...");
 
-            const systemPrompt = `你是深耕中国高考作文命题与阅卷 20 年的特级教师。
-任务： 针对用户提供的作文题目，给出三个层层递进的创作提纲。
-输出约束：
-1. 每个提纲包含：标题、核心立意、以及三个对仗式论点。
-2. 标题七字短句，化用诗词句式，紧扣核心意象。
-3. 论点体现层次递进、辩证逻辑。
-4. 论点句式：采用古典句式，简要说明观点。
-5. 素材预设：针对提纲利益，选择古诗词库或者现代诗库。在选定文学库中，为每个论点句分别匹配1句诗句，必须是真实文学素材。
-6. 为每个论点内部论证分别匹配3个人物/事件名，必须是冷门文化素材，严禁陈词滥调。
-请输出纯净JSON：{"outlines": [{"title": "", "立意": "", "points": ["", "", ""], "poems": ["", "", ""], "materials": ["", "", ""]}]}`;
+            const systemPrompt = `你是特级教师。针对命题给出三个递进提纲。
+输出纯净JSON格式：{"outlines": [{"title": "七字标题", "立意": "一句话立意", "points": ["对仗论点1", "对仗论点2", "对仗论点3"], "poems": ["真实诗句1", "真实诗句2", "真实诗句3"], "materials": ["素材1", "素材2", "素材3"]}]}`;
 
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: topic }]);
             if (res) {
                 try {
-                    const data = JSON.parse(res.match(/\{[\s\S]*\}/)[0]);
+                    const jsonMatch = res.match(/\{[\s\S]*\}/);
+                    const data = JSON.parse(jsonMatch[0]);
                     const container = document.getElementById('outlineCards');
                     container.innerHTML = data.outlines.map(o => `
                         <div onclick='writeEssay(${JSON.stringify(o).replace(/'/g, "&apos;")})' class="card-outline p-6 rounded-sm">
@@ -198,7 +200,7 @@
                     document.getElementById('step2').classList.remove('hidden');
                     Progress.update(100, "立意推演完成");
                 } catch (e) {
-                    alert("提纲解析失败，请检查 API 返回内容格式是否为标准 JSON");
+                    alert("提纲解析失败，请确保模型输出的是标准 JSON。");
                     Progress.fail();
                 }
             }
@@ -213,21 +215,9 @@
 
             Progress.update(20, "起笔古典意象，入局材料...");
 
-            const systemPrompt = `你是特级教师。请根据选定提纲创作。
-语言风格：
-- 兼具古文典雅与近当代散文隽永。
-- 使用“之乎者也”调节语感，严禁“首先/其次”。
-- 尽量不使用冒号、引号、破折号。
-- 引用的典故必须真实，严禁自创，不确定则不引。
-结构：
-1. 开头（125字）：古典意象或典故起兴，和标题核心意象照应。
-2. 论点段（300字×3）：
-- 论点句points开启，搭配诗句poems。
-- 论点内部：衔接3个素材materials，呈排比句，内含电影感细节描写，句式富有节奏感。
-3. 结尾（125字）：回扣开头、标题；总结文章结构。收尾全文。
-总量1000字。`;
+            const systemPrompt = `你是特级教师。请根据提纲创作1000字作文。风格典雅，引经据典必须真实。严禁使用冒号引号。开头意象起兴，段落论点开启，电影感特写描写素材，结尾升华。`;
 
-            const userPrompt = `材料：${document.getElementById('essayTopic').value}\n方案：${outline.title}\n提纲详情：${JSON.stringify(outline)}`;
+            const userPrompt = `材料：${document.getElementById('essayTopic').value}\n提纲：${JSON.stringify(outline)}`;
             
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }]);
             if (res) {
