@@ -42,16 +42,16 @@
 
     <nav class="glass-nav text-white p-4 sticky top-0 z-50 shadow-2xl">
         <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center">
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
                 <span class="text-3xl font-logo text-yellow-600">Textile</span>
-                <span class="text-[10px] tracking-widest text-slate-400 uppercase border-l border-slate-700 pl-4 h-6 flex items-center">经纬·特级教师写作系统</span>
+                <span class="text-[11px] tracking-[0.2em] text-slate-400 uppercase border-l border-slate-700 pl-4 h-6 flex items-center">高考作文写作工具</span>
             </div>
             
-            <div class="flex gap-3 items-center">
-                <select id="modelPreset" onchange="updateModelConfig()" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded focus:outline-none focus:border-yellow-600 text-slate-200">
+            <div class="flex gap-3 items-center mt-3 md:mt-0">
+                <select id="modelPreset" onchange="updateModelConfig()" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded focus:outline-none focus:border-yellow-600 text-slate-200 cursor-pointer">
                     <option value="">选择模型路线...</option>
-                    <option value="gemini">Gemini 1.5 Pro (真实性首选)</option>
-                    <option value="deepseek">DeepSeek V3/R1 (逻辑推演)</option>
+                    <option value="gemini">Gemini 1.5 Pro </option>
+                    <option value="deepseek">DeepSeek V3/R1 </option>
                     <option value="gpt4o">OpenAI GPT-4o</option>
                 </select>
                 <input id="apiKey" type="password" placeholder="API Key" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded w-40 outline-none focus:border-yellow-600 text-slate-200">
@@ -91,6 +91,8 @@
 
     <script>
         const CONFIG = {
+            // 注意：Gemini 官方 Endpoint 在前端直接 fetch 通常会报 CORS 错误
+            // 建议使用 OpenAI 格式的中转地址
             gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-1.5-pro' },
             deepseek: { url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
             gpt4o: { url: 'https://api.openai.com/v1', model: 'gpt-4o' }
@@ -122,7 +124,7 @@
 
         async function callAI(messages) {
             const apiKey = document.getElementById('apiKey').value;
-            if (!apiKey || !currentUrl) { alert('配置缺失：请选择模型并填写 API Key'); return null; }
+            if (!apiKey || !currentUrl) { alert('配置缺失：请在导航栏选择模型并填写 API Key'); return null; }
             try {
                 const response = await fetch(`${currentUrl}/chat/completions`, {
                     method: 'POST',
@@ -136,7 +138,8 @@
                 const data = await response.json();
                 return data.choices[0].message.content;
             } catch (error) {
-                alert(`经纬中断：${error.message}`);
+                console.error(error);
+                alert(`经纬中断：${error.message}\n提示：若使用 Gemini 出错，通常是跨域(CORS)限制，建议使用中转地址。`);
                 Progress.fail();
                 return null;
             }
@@ -147,17 +150,18 @@
             if(!topic) return;
             const btn = document.getElementById('btnOutline');
             btn.disabled = true;
-            Progress.update(20, "正在挖掘文章立意...");
+            Progress.update(20, "正在挖掘文化根源与哲学辩证...");
 
             const systemPrompt = `你是深耕中国高考作文命题与阅卷 20 年的特级教师。你的核心能力是“点石成金”，能从普通材料中挖掘出深层的文化根源与哲学辩证逻辑。
 任务： 针对用户提供的作文题目，给出三个层层递进的创作提纲。
 输出约束：
-1. 结构要求：每个提纲必须包含：标题、核心立意（一句话）、以及三个论点。
-2. 逻辑要求：论点必须体现递进关系（包括但不限于：从个体觉醒到群体共振，从物理表象到文化认同，从历史守恒到未来演进）。
-3. 论点句式：所有论点必须采用相同句式、具有古典韵味。
-4. 素材预设：为每个论点精准匹配【1句古诗词+3个人物/事件】，必须是文化厚度高的冷门素材，严禁使用苏轼、司马迁等。
-5. 标题要求：精巧短小（4字或7字），联系核心意象或开头结尾诗句。
-请直接输出纯净JSON格式，严禁任何前言后记：{"outlines": [{"title": "", "立意": "", "points": ["论点1", "论点2", "论点3"], "materials": "9个人物名"}]}`;
+1. 每个提纲包含：标题、核心立意、以及三个对仗式论点。
+2. 标题七字短句，紧扣核心意象。
+3. 论点体现层次递进、辩证逻辑。
+4. 论点句式：采用古典句式，简要说明观点。
+5. 素材预设：为每个论点句分别匹配1句古诗/现代诗，必须是真实文学素材。
+6. 为每个论点内部论证分别匹配3个人物/事件名，必须是冷门文化素材，严禁陈词滥调。
+请输出纯净JSON：{"outlines": [{"title": "", "立意": "", "points": ["", "", ""],  "poems": ["", "", ""], "materials": ["", "", ""]}]}`;
 
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: topic }]);
             if (res) {
@@ -177,7 +181,7 @@
                     document.getElementById('step2').classList.remove('hidden');
                     Progress.update(100, "立意推演完成");
                 } catch (e) {
-                    alert("提纲解析异常，建议微调模型或重试");
+                    alert("提纲解析失败，请检查 API 返回内容");
                     Progress.fail();
                 }
             }
@@ -192,23 +196,19 @@
 
             Progress.update(20, "起笔古典意象，入局材料...");
 
-            const systemPrompt = `你是深耕中国高考作文命题与阅卷 20 年的特级教师。请根据用户选定的提纲进行正文创作。
+            const systemPrompt = `你是特级教师。请根据选定提纲创作。
 语言风格：
-- 兼具《文心雕龙》的典雅与近当代人文散文的隽永。句式长短错落，富有节奏感。
-- 多用长短句结合，适度使用“之、乎、者、也、焉、哉”调节语感。
-- 严禁使用“首先/其次/综上所述”。改用“然则、回望、溯流而上、诚如斯言”等文学性衔接。
-- 【防伪约束】：尽量不使用冒号、引号、破折号。引用的古诗词必须真实存在，严禁自创，若不确定宁可不引。
-结构与字数控准：
-1. 起兴开头（150字）：必须以古典意象或典故起兴，引出材料，立意入局。
-2. 论点段落（250字 × 3）：
-   - 每个论点开头，必须是一句古诗或现代诗（切忌自创）
-   - 诗句后衔接提纲选定的对仗句。
-   - 每个论点内部，结合提纲中的3个事例匹配论点，展开论证，使用细节描写（如：指尖摩挲简册、衣襟沾染棉絮）
-   - 每个论点下的多个案例论证句式相同，相互对仗。
-3. 升华结尾（150字）：从物理层面升华为哲学高度。
-字数总量1000字左右。`;
+- 兼具《文心雕龙》典雅与近代民国时期散文隽永。
+- 使用“之乎者也”调节语感，严禁“首先/其次”。
+- 尽量不使用冒号、引号、破折号。
+- 引用的典故必须真实，严禁自创，不确定则不引。
+结构：
+1. 开头（150字）：古典意象或典故起兴，和标题核心意象照应。
+2. 论点段（250字×3）：论点句points开启，搭配诗句poems。衔接电影感特写镜头描写3个素材细节，呈排比句，句式富有节奏感。
+3. 结尾（150字）：升华为文化认同或家国共识，回扣开头、标题。
+总量1000字。`;
 
-            const userPrompt = `题目材料：${document.getElementById('essayTopic').value}\n方案标题：${outline.title}\n论点骨架：${outline.points.join('；')}`;
+            const userPrompt = `材料：${document.getElementById('essayTopic').value}\n方案：${outline.title}\n论点：${outline.points.join('；')}`;
             
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }]);
             if (res) {
@@ -218,7 +218,7 @@
         }
 
         function copyEssay() {
-            navigator.clipboard.writeText(document.getElementById('finalEssay').innerText).then(() => alert('已收录至剪贴板'));
+            navigator.clipboard.writeText(document.getElementById('finalEssay').innerText).then(() => alert('文稿已收录至剪贴板'));
         }
     </script>
 </body>
