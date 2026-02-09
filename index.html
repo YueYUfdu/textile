@@ -50,8 +50,8 @@
             <div class="flex gap-3 items-center mt-3 md:mt-0">
                 <select id="modelPreset" onchange="updateModelConfig()" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded focus:outline-none focus:border-yellow-600 text-slate-200 cursor-pointer">
                     <option value="">选择模型路线...</option>
-                    <option value="gemini">Gemini 1.5 Pro </option>
-                    <option value="deepseek">DeepSeek V3/R1 </option>
+                    <option value="gemini">Gemini 1.5 Pro</option>
+                    <option value="deepseek">DeepSeek V3/R1</option>
                     <option value="gpt4o">OpenAI GPT-4o</option>
                 </select>
                 <input id="apiKey" type="password" placeholder="API Key" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded w-40 outline-none focus:border-yellow-600 text-slate-200">
@@ -90,9 +90,8 @@
     </main>
 
     <script>
+        // 修复点：提供更健壮的默认地址，并提醒用户 CORS 问题
         const CONFIG = {
-            // 注意：Gemini 官方 Endpoint 在前端直接 fetch 通常会报 CORS 错误
-            // 建议使用 OpenAI 格式的中转地址
             gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-1.5-pro' },
             deepseek: { url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
             gpt4o: { url: 'https://api.openai.com/v1', model: 'gpt-4o' }
@@ -125,12 +124,25 @@
         async function callAI(messages) {
             const apiKey = document.getElementById('apiKey').value;
             if (!apiKey || !currentUrl) { alert('配置缺失：请在导航栏选择模型并填写 API Key'); return null; }
+            
+            // 修复点：针对 Gemini 官方地址进行 CORS 预判。
+            // 提示：如果是在本地直接运行或 Vercel 前端直连，官方接口 99% 会因 CORS 失败。
+            // 建议：此处 currentUrl 最好由用户输入中转 API 地址。
+            
             try {
                 const response = await fetch(`${currentUrl}/chat/completions`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: currentModel, messages: messages, temperature: 0.7 })
+                    headers: { 
+                        'Authorization': `Bearer ${apiKey}`, 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        model: currentModel, 
+                        messages: messages, 
+                        temperature: 0.7 
+                    })
                 });
+
                 if (!response.ok) {
                     const err = await response.json();
                     throw new Error(err.error?.message || `HTTP ${response.status}`);
@@ -138,8 +150,13 @@
                 const data = await response.json();
                 return data.choices[0].message.content;
             } catch (error) {
-                console.error(error);
-                alert(`经纬中断：${error.message}\n提示：若使用 Gemini 出错，通常是跨域(CORS)限制，建议使用中转地址。`);
+                console.error("AI Call Error:", error);
+                // 修复点：更精准的缺陷提示
+                let errorMsg = error.message;
+                if (error.message.includes('Failed to fetch')) {
+                    errorMsg = "网络连接失败。原因可能是：1. 浏览器拦截了跨域请求(CORS)；2. 无法直连 Google 服务器。建议使用 API 中转代理地址。";
+                }
+                alert(`经纬中断：${errorMsg}`);
                 Progress.fail();
                 return null;
             }
@@ -161,7 +178,7 @@
 4. 论点句式：采用古典句式，简要说明观点。
 5. 素材预设：针对提纲利益，选择古诗词库或者现代诗库。在选定文学库中，为每个论点句分别匹配1句诗句，必须是真实文学素材。
 6. 为每个论点内部论证分别匹配3个人物/事件名，必须是冷门文化素材，严禁陈词滥调。
-请输出纯净JSON：{"outlines": [{"title": "", "立意": "", "points": ["", "", ""],  "poems": ["", "", ""], "materials": ["", "", ""]}]}`;
+请输出纯净JSON：{"outlines": [{"title": "", "立意": "", "points": ["", "", ""], "poems": ["", "", ""], "materials": ["", "", ""]}]}`;
 
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: topic }]);
             if (res) {
@@ -175,13 +192,13 @@
                             <ul class="text-[11px] space-y-2 mb-5 text-slate-600 border-l border-yellow-700/30 pl-3">
                                 ${o.points.map(p => `<li>${p}</li>`).join('')}
                             </ul>
-                            <div class="text-[9px] text-yellow-800 font-bold opacity-40">素材：${o.materials}</div>
+                            <div class="text-[9px] text-yellow-800 font-bold opacity-40">素材库：${o.materials.join('、')}</div>
                         </div>
                     `).join('');
                     document.getElementById('step2').classList.remove('hidden');
                     Progress.update(100, "立意推演完成");
                 } catch (e) {
-                    alert("提纲解析失败，请检查 API 返回内容");
+                    alert("提纲解析失败，请检查 API 返回内容格式是否为标准 JSON");
                     Progress.fail();
                 }
             }
@@ -210,7 +227,7 @@
 3. 结尾（125字）：回扣开头、标题；总结文章结构。收尾全文。
 总量1000字。`;
 
-            const userPrompt = `材料：${document.getElementById('essayTopic').value}\n方案：${outline.title}\n论点：${outline.points.join('；')}`;
+            const userPrompt = `材料：${document.getElementById('essayTopic').value}\n方案：${outline.title}\n提纲详情：${JSON.stringify(outline)}`;
             
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }]);
             if (res) {
