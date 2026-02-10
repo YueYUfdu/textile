@@ -11,6 +11,7 @@
         body { background-color: var(--ya-white); font-family: 'Noto Serif SC', serif; scroll-behavior: smooth; }
         .font-logo { font-family: 'Zhi Mang Xing', cursive; }
         .glass-nav { background: rgba(26, 26, 26, 0.98); backdrop-filter: blur(12px); border-bottom: 1px solid #334155; }
+        
         .essay-canvas { 
             background-color: var(--ya-white);
             background-image: linear-gradient(#e5e7eb 1px, transparent 1px);
@@ -23,12 +24,14 @@
             letter-spacing: 0.02em;
             color: #1a1a1a;
         }
+
         .btn-gold {
             background: linear-gradient(135deg, #c5a059 0%, #a67c37 100%);
             color: white; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .btn-gold:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(166, 124, 55, 0.3); }
         .btn-gold:disabled { opacity: 0.6; cursor: not-allowed; }
+
         .card-outline { border: 1px solid #e2e8f0; transition: all 0.4s ease; background: rgba(255,255,255,0.4); cursor: pointer; }
         .card-outline:hover { border-color: #a67c37; background: #fff; transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.05); }
         .progress-smooth { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -44,14 +47,15 @@
             </div>
             
             <div class="flex flex-col md:flex-row gap-2 items-end md:items-center mt-3 md:mt-0">
-                <input id="customUrl" type="text" placeholder="自定义代理(不填则用官方)" class="bg-slate-900 border border-slate-700 text-[10px] px-2 py-1.5 rounded w-36 outline-none focus:border-yellow-600 text-slate-400">
+                <input id="customUrl" type="text" placeholder="代理地址(如火山引擎Endpoint)" class="bg-slate-900 border border-slate-700 text-[10px] px-2 py-1.5 rounded w-36 outline-none focus:border-yellow-600 text-slate-400">
                 <select id="modelPreset" onchange="updateModelConfig()" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded focus:outline-none focus:border-yellow-600 text-slate-200 cursor-pointer">
                     <option value="">选择模型路线...</option>
                     <option value="gemini">Gemini 1.5 Pro</option>
+                    <option value="doubao">豆包 Doubao-Pro</option>
                     <option value="deepseek">DeepSeek V3/R1</option>
                     <option value="gpt4o">OpenAI GPT-4o</option>
                 </select>
-                <input id="apiKey" type="password" placeholder="API Key" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded w-40 outline-none focus:border-yellow-600 text-slate-200">
+                <input id="apiKey" type="password" placeholder="API Key / EP-ID" class="bg-slate-800 border border-slate-700 text-xs px-3 py-1.5 rounded w-40 outline-none focus:border-yellow-600 text-slate-200">
             </div>
         </div>
     </nav>
@@ -89,6 +93,7 @@
     <script>
         const CONFIG = {
             gemini: { base: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-1.5-pro' },
+            doubao: { base: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-pro-4k' },
             deepseek: { base: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
             gpt4o: { base: 'https://api.openai.com/v1', model: 'gpt-4o' }
         };
@@ -121,7 +126,6 @@
             const apiKey = document.getElementById('apiKey').value;
             const userUrl = document.getElementById('customUrl').value.trim();
             
-            // 修复 404 的逻辑：智能拼接路径
             let baseUrl = (userUrl || currentBase).replace(/\/$/, "");
             if (!baseUrl.endsWith("/chat/completions")) {
                 baseUrl += "/chat/completions";
@@ -152,8 +156,8 @@
             } catch (error) {
                 console.error(error);
                 let msg = error.message;
-                if (msg.includes("404")) msg = "404 错误：请求路径不存在。请检查自定义代理地址是否正确。";
-                if (msg.includes("Failed to fetch")) msg = "网络错误：可能是跨域拦截(CORS)或无法连接 Google。建议使用中转。";
+                if (msg.includes("404")) msg = "路径错误(404)。请确认代理地址是否包含正确的API路径。";
+                if (msg.includes("Failed to fetch")) msg = "跨域(CORS)或网络拦截。豆包、Gemini等模型建议通过中转代理调用。";
                 alert(`经纬中断：${msg}`);
                 Progress.fail();
                 return null;
@@ -165,18 +169,20 @@
             if(!topic) return;
             const btn = document.getElementById('btnOutline');
             btn.disabled = true;
-            Progress.update(20, "挖掘文化根源...");
+            Progress.update(20, "挖掘文化根源与哲学辩证...");
 
-            const systemPrompt = `你是特级教师。输出纯净JSON提纲：{"outlines": [{"title": "", "立意": "", "points": ["", "", ""], "poems": ["", "", ""], "materials": ["", "", ""]}]}`;
+            const systemPrompt = `你是特级教师。针对命题给出三个递进提纲。输出纯净JSON格式：{"outlines": [{"title": "七字标题", "立意": "一句话立意", "points": ["对仗论点1", "对仗论点2", "对仗论点3"], "poems": ["真实诗句1", "真实诗句2", "真实诗句3"], "materials": ["素材1", "素材2", "素材3"]}]}`;
 
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: topic }]);
             if (res) {
                 try {
-                    const data = JSON.parse(res.match(/\{[\s\S]*\}/)[0]);
+                    const jsonMatch = res.match(/\{[\s\S]*\}/);
+                    const data = JSON.parse(jsonMatch[0]);
                     const container = document.getElementById('outlineCards');
                     container.innerHTML = data.outlines.map(o => `
                         <div onclick='writeEssay(${JSON.stringify(o).replace(/'/g, "&apos;")})' class="card-outline p-6 rounded-sm">
                             <h3 class="font-bold text-base mb-4 text-slate-800 tracking-wide">${o.title}</h3>
+                            <p class="text-[9px] text-slate-400 mb-4 italic leading-relaxed">${o.立意}</p>
                             <ul class="text-[11px] space-y-2 mb-5 text-slate-600 border-l border-yellow-700/30 pl-3">
                                 ${o.points.map(p => `<li>${p}</li>`).join('')}
                             </ul>
@@ -185,7 +191,7 @@
                     document.getElementById('step2').classList.remove('hidden');
                     Progress.update(100, "立意推演完成");
                 } catch (e) {
-                    alert("解析失败，请确保模型输出标准 JSON。");
+                    alert("解析失败，请确保模型输出的是标准 JSON 格式。");
                     Progress.fail();
                 }
             }
@@ -195,11 +201,12 @@
         async function writeEssay(outline) {
             const container = document.getElementById('finalEssay');
             document.getElementById('step3').classList.remove('hidden');
-            container.innerHTML = "<div class='text-center py-24 italic text-slate-300 tracking-[0.5em]'>笔墨落纸...</div>";
+            container.innerHTML = "<div class='text-center py-24 italic text-slate-300 tracking-[0.5em]'>笔墨落纸，锦绣自成...</div>";
             window.scrollTo({ top: document.getElementById('step3').offsetTop - 100, behavior: 'smooth' });
+
             Progress.update(20, "起笔成章...");
 
-            const systemPrompt = `你是特级教师。根据提纲创作1000字作文。引经据典必须真实。严禁冒号引号。开头意象起兴，段落论点开启，电影感描写。`;
+            const systemPrompt = `你是特级教师。根据提纲创作1000字作文。风格典雅。开头意象起兴，段落论点开启，电影感描写。引用必须真实。`;
             const res = await callAI([{ role: "system", content: systemPrompt }, { role: "user", content: `提纲：${JSON.stringify(outline)}` }]);
             if (res) {
                 Progress.update(100, "锦绣文章已成");
@@ -208,7 +215,7 @@
         }
 
         function copyEssay() {
-            navigator.clipboard.writeText(document.getElementById('finalEssay').innerText).then(() => alert('已复制'));
+            navigator.clipboard.writeText(document.getElementById('finalEssay').innerText).then(() => alert('文稿已复制'));
         }
     </script>
 </body>
